@@ -125,3 +125,94 @@ def generate_request_xml(addresses,username,password,license_number):
 			</soapenv:Body>
 		</soapenv:Envelope>
 	""".format(username,password,license_number,address_xml_template)
+
+
+
+import json
+
+def generate_request_json(addresses, username, password, license_number):
+    # Initialize the request dictionary
+    request_dict = {
+        "UPSSecurity": {
+            "UsernameToken": {
+                "Username": username,
+                "Password": password
+            },
+            "ServiceAccessToken": {
+                "AccessLicenseNumber": license_number
+            }
+        },
+        "SDSRequest": {
+            "TimeToMonitor": 0,
+            "Request": {
+                "RequestOption": "02",
+                "TransactionReference": {
+                    "CustomerContext": "Inbound- Success",
+                    "TransactionIdentifier": ""
+                }
+            },
+            "Address": []
+        }
+    }
+
+    # Build the address list
+    for address in addresses:
+        # Replace 'None', 'null', or None with appropriate defaults
+        address = {k: ("" if v in ["None", "null", None] else v) for k, v in address.items()}
+        address.setdefault("CustomerAddressID", "T8N")
+        address.setdefault("name", "")
+        address.setdefault("attention_name", "")
+
+        # Append the address to the request dictionary
+        request_dict["SDSRequest"]["Address"].append({
+            "CustomerAddressID": address.get("CustomerAddressID"),
+            "Name": address.get("name"),
+            "AttentionName": address.get("attention_name"),
+            "AddressLine1": address.get("ship_to_street1"),
+            "AddressLine2": address.get("ship_to_street2", ""),
+            "AddressLine3": address.get("ship_to_street3", ""),
+            "City": address.get("ship_to_city"),
+            "State": address.get("ship_to_state"),
+            "Country": address.get("ship_to_country", "US"),
+            "PostalCode": address.get("ship_to_postal_code")
+        })
+
+    # Convert the request dictionary to a JSON string
+    return json.dumps(request_dict)
+
+import requests
+import json
+from requests.exceptions import Timeout
+
+def sds_call(addresses, ups_api_endpoint, username, password, license_number, timeout):
+    if ups_api_endpoint == "sim":
+        return {"addrs": addresses}
+    
+    try:
+        headers = {
+            "Content-Type": "application/json",  # Assume the content being sent is JSON
+            "Accept": "application/json"         # Request a JSON response
+        }
+        response_dict = None
+
+        # Assuming generate_request_json is a function you would create to generate the JSON payload
+        response = requests.post(ups_api_endpoint, json=generate_request_json(addresses, username, password, license_number), headers=headers, timeout=timeout)
+        
+        # Load JSON response into a Python dictionary
+        response_dict = response.json()
+        
+        # The rest of the code would need to be adapted based on the actual structure of the JSON response
+        if "SDSResponse" in response_dict:
+            response_formatted = response_dict["SDSResponse"]
+            return response_formatted
+        else:
+            error = response_dict['Fault']['detail']['Errors']['ErrorDetail']['PrimaryErrorCode']['Code']
+            return {"error": error}
+            
+    except Timeout:
+        print("The request timed out.")
+        return "timeout"
+    except Exception as e:
+        print("SDS error occurred: " + str(e))
+        return None
+
