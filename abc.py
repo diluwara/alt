@@ -2,27 +2,9 @@ def sds_call(addresses,ups_api_endpoint,username,password,license_number,timeout
 	if ups_api_endpoint == "sim":
 		return {"addrs":addresses}
 	try:
-		# ct = current_time_at_timezone('America/New_York')
-		# if not (ct <= "09:00:00" and ct >= "02:00:00"):
-		# 	print("OUTSIDE SDS WINDOW")
-		# 	return None
-		# print("SDS_CALL")
 		headers = {"content-type": "text/xml"}
-		# response = requests.post(ups_api_endpoint, data=generate_request_xml(addresses,username,password,license_number).encode("utf-8"),headers=headers)
 		response_dict = None
 
-		# try:
-		# 	db = sql_controller()
-		# 	timeout = float(global_timeout)
-		# 	if retailer_code is not None:
-		# 		timeout = float(db.get_retailer_timeout())
-		# 	response = requests.post(ups_api_endpoint, data=generate_request_xml(addresses,username,password,license_number).encode("utf-8"),headers=headers,timeout=timeout)
-		# 	response_dict = xmltodict.parse(response.content)
-		# except requests.Timeout:
-		# 	return "timeout"
-
-		
-		# db = sql_controller()
 		response = requests.post(ups_api_endpoint, data=generate_request_xml(addresses,username,password,license_number).encode("utf-8"),headers=headers,timeout = timeout)
 		response_dict = xmltodict.parse(response.content)
 		
@@ -218,4 +200,31 @@ def sds_call(addresses, ups_api_endpoint, username, password, license_number, ti
 
 "raw_sds_test_response": "{\"@xmlns:sds\": \"http://www.ups.com/XMLSchema/XOLTWS/SDS/v1.0\", \"common:Response\": {\"@xmlns:common\": \"http://www.ups.com/XMLSchema/XOLTWS/Common/v1.0\", \"common:ResponseStatus\": {\"common:Code\": \"1\", \"common:Description\": \"Success\"}, \"common:TransactionReference\": {\"common:CustomerContext\": \"Inbound- Success\", \"common:TransactionIdentifier\": \"dssyncs56c374zC65xDBXR\"}}, \"sds:Address\": [{\"sds:CustomerAddressID\": \"T8N\", \"sds:Classification\": \"R\", \"sds:GroupNumber\": \"0\", \"sds:ErrorCode\": \"0\", \"sds:AddressLine1\": null, \"sds:City\": null, \"sds:State\": null, \"sds:Country\": null, \"sds:PostalCode\": null, \"sds:Day\": [{\"sds:Date\": \"20231104\", \"sds:SDSID\": \"TJKJH0D6B6TMUYR1UFU0\", \"sds:SDSAvailability\": \"01\", \"sds:MatchLevel\": \"1\"}, {\"sds:Date\": \"20231105\", \"sds:SDSAvailability\": \"00\", \"sds:MatchLevel\": \"0\"}, {\"sds:Date\": \"20231106\", \"sds:SDSAvailability\": \"00\", \"sds:MatchLevel\": \"0\"}, {\"sds:Date\": \"20231107\", \"sds:SDSAvailability\": \"00\", \"sds:MatchLevel\": \"0\"}, {\"sds:Date\": \"20231108\", \"sds:SDSAvailability\": \"00\", \"sds:MatchLevel\": \"0\"}, {\"sds:Date\": \"20231109\", \"sds:SDSAvailability\": \"00\", \"sds:MatchLevel\": \"0\"}, {\"sds:Date\": \"20231110\", \"sds:SDSAvailability\": \"00\", \"sds:MatchLevel\": \"0\"}, {\"sds:Date\": \"20231111\", \"sds:SDSAvailability\": \"00\", \"sds:MatchLevel\": \"0\"}]}, {\"sds:CustomerAddressID\": \"T8N\", \"sds:Classification\": \"R\", \"sds:GroupNumber\": \"1\", \"sds:ErrorCode\": \"0\", \"sds:AddressLine1\": null, \"sds:City\": null, \"sds:State\": null, \"sds:Country\": null, \"sds:PostalCode\": null, \"sds:Day\": [{\"sds:Date\": \"20231104\", \"sds:SDSID\": \"TJKJHZB49CWF5DKLFDPQ\", \"sds:SDSAvailability\": \"01\", \"sds:MatchLevel\": \"2\"}, {\"sds:Date\": \"20231105\", \"sds:SDSAvailability\": \"00\", \"sds:MatchLevel\": \"0\"}, {\"sds:Date\": \"20231106\", \"sds:SDSAvailability\": \"00\", \"sds:MatchLevel\": \"0\"}, {\"sds:Date\": \"20231107\", \"sds:SDSAvailability\": \"00\", \"sds:MatchLevel\": \"0\"}, {\"sds:Date\": \"20231108\", \"sds:SDSAvailability\": \"00\", \"sds:MatchLevel\": \"0\"}, {\"sds:Date\": \"20231109\", \"sds:SDSAvailability\": \"00\", \"sds:MatchLevel\": \"0\"}, {\"sds:Date\": \"20231110\", \"sds:SDSAvailability\": \"00\", \"sds:MatchLevel\": \"0\"}, {\"sds:Date\": \"20231111\", \"sds:SDSAvailability\": \"00\", \"sds:MatchLevel\": \"0\"}]}]}"
 }
+def clean_response(response_dict):
+    # This function will be used to clean the namespaces and structure the response dictionary.
+    clean_dict = {}
+    
+    # Recursively clean the dictionary.
+    def clean(d):
+        if isinstance(d, dict):
+            new_dict = {}
+            for k, v in d.items():
+                # Remove namespace prefixes (e.g. 'sds:', 'common:')
+                key = k.split(':')[-1]
+                value = clean(v)
+                new_dict[key] = value
+            return new_dict
+        elif isinstance(d, list):
+            return [clean(v) for v in d]
+        else:
+            return d
+    
+    # Start cleaning with the root element, which is typically 'Response' or similar.
+    if 'Response' in response_dict:
+        clean_dict = clean(response_dict['Response'])
+    else:
+        # Adjust this line to match the actual root element of your response
+        clean_dict = clean(response_dict)
+    
+    return clean_dict
 
